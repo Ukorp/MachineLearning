@@ -3,22 +3,17 @@ from collections import Counter
 
 
 def find_best_split(feature_vector, target_vector):
-    # Проверка на константный признак
     if len(np.unique(feature_vector)) == 1:
         return None, None, None, None
     
-    # Сортируем признаки и соответствующие целевые значения
     sorted_indices = np.argsort(feature_vector)
     sorted_features = feature_vector[sorted_indices]
     sorted_targets = target_vector[sorted_indices]
     
-    # Вычисляем все возможные пороги как средние между соседними значениями
     thresholds = (sorted_features[1:] + sorted_features[:-1]) / 2
     
-    # Уникальные пороги (на случай повторяющихся значений признака)
     unique_thresholds = np.unique(thresholds)
     
-    # Векторизованное вычисление критерия Джини для всех порогов
     left_counts = np.cumsum(sorted_targets[:-1])
     left_sizes = np.arange(1, len(sorted_targets))
     
@@ -33,10 +28,8 @@ def find_best_split(feature_vector, target_vector):
     p0_right = 1 - p1_right
     H_right = 1 - p1_right**2 - p0_right**2
     
-    # Вычисляем критерий Джини
     ginis = -(left_sizes/len(target_vector)) * H_left - (right_sizes/len(target_vector)) * H_right
     
-    # Находим лучший порог (с минимальным значением Джини, так как мы используем -Q(R))
     valid_indices = (left_sizes > 0) & (right_sizes > 0)
     if not np.any(valid_indices):
         return None, None, None, None
@@ -66,7 +59,6 @@ class DecisionTree:
         self._min_samples_leaf = min_samples_leaf
 
     def _fit_node(self, sub_X, sub_y, node, depth=0):
-        # Критерии останова
         if len(np.unique(sub_y)) == 1:
             node["type"] = "terminal"
             node["class"] = sub_y[0]
@@ -90,11 +82,9 @@ class DecisionTree:
             if feature_type == "real":
                 feature_vector = sub_X[:, feature]
             elif feature_type == "categorical":
-                # Исправленная обработка категориальных признаков
                 unique_values = np.unique(sub_X[:, feature])
                 value_to_index = {val: idx for idx, val in enumerate(unique_values)}
                 
-                # Считаем вероятность класса 1 для каждой категории
                 ratios = {}
                 for val in unique_values:
                     mask = (sub_X[:, feature] == val)
@@ -103,14 +93,12 @@ class DecisionTree:
                     else:
                         ratios[val] = 0.0
                 
-                # Сортируем категории по вероятности класса 1
                 sorted_categories = sorted(unique_values, key=lambda x: ratios[x])
                 categories_map = {cat: i for i, cat in enumerate(sorted_categories)}
                 feature_vector = np.array([categories_map[x] for x in sub_X[:, feature]])
             else:
                 raise ValueError(f"Unknown feature type: {feature_type}")
 
-            # Пропускаем признаки с недостаточным количеством уникальных значений
             if len(np.unique(feature_vector)) < 2:
                 continue
 
@@ -126,7 +114,6 @@ class DecisionTree:
                 if feature_type == "real":
                     threshold_best = threshold
                 elif feature_type == "categorical":
-                    # Исправлено: правильное определение категорий для левого поддерева
                     threshold_best = [cat for cat in categories_map 
                                    if categories_map[cat] < threshold]
                 else:
@@ -147,7 +134,6 @@ class DecisionTree:
             
         node["left_child"], node["right_child"] = {}, {}
         
-        # Проверка min_samples_leaf
         left_samples = np.sum(split)
         right_samples = len(split) - left_samples
         
@@ -160,10 +146,9 @@ class DecisionTree:
             
         if self._feature_types[feature_best] == "real":
             split_mask = sub_X[:, feature_best] < threshold_best
-        else:  # categorical
+        else: 
             split_mask = np.isin(sub_X[:, feature_best], threshold_best)
         
-        # Проверка: нет ли пустых подмножеств
         if np.sum(split_mask) == 0 or np.sum(~split_mask) == 0:
             node["type"] = "terminal"
             node["class"] = Counter(sub_y).most_common(1)[0][0]
